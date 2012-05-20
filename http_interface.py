@@ -63,20 +63,30 @@ class Delete(webapp2.RequestHandler):
 
 class Fetch(blobstore_handlers.BlobstoreDownloadHandler):
     
-    @checked_request
-    def get(self, path):
-        user = get_user_from_request(self.request)
+    def get(self, fetch_id):
+        user, path = control.do_fetch(fetch_id)
         gspath = control.get_file_gspath(user, path)
         size = control.file_metadata(user, path)['size']
         self.response.headers.add('Content-Length', str(size))
+        self.response.headers.add('x-acidcloud-metadata', json.dump(control.file_metadata(user, path)))
         self.send_blob(blobstore.create_gs_key(gspath))
+
+class FilesHandler(blobstore_handlers.BlobstoreDownloadHandler):
     
+    @checked_request
+    def get(self, path):
+        user = get_user_from_request(self.request)
+        fetch_id = control.init_fetch(user, path)
+        return self.redirect('/fetch/{0}'.format(fetch_id))
+    
+
 app = webapp2.WSGIApplication([('/', MainPage),
                                ('/start-upload/([^/]+)(/.+)', StartUpload),
                                ('/upload/([0-9]+)/([0-9]+)', Upload),
                                ('/finish-upload/([0-9]+)', FinishUpload),
                                ('/list/(.+)', List),
-                               ('/fetch(/.+)', Fetch),
+                               ('/files(/.+)', FilesHandler),
+                               ('/fetch/(.+)', Fetch),
                                ('/create-user', CreateUser),
                                ('/delete(/.+)', Delete),
                                ],

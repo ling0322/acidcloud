@@ -10,6 +10,7 @@ import metadata
 import upload
 from email.utils import parsedate
 import datetime
+import fetch
 
 def delete_file(user_name, path):
     user = user_name.lower()
@@ -40,6 +41,7 @@ def get_list(user):
     return metadata.list_metadata(user)
 
 def file_metadata(user, path):
+    ''' if file not exists, return None '''
     return metadata.get_metadata(user, path)
 
 def get_file_gspath(user, path):
@@ -51,3 +53,9 @@ def create_user(user_name, password):
 
 def delete_user(user_name):
     userinfo.delete_user(user_name)
+
+def init_fetch(user, path):
+    return fetch.init_fetch(user, path)
+    
+def do_fetch(fetch_id):
+    return fetch.do_fetch(fetch_id)
