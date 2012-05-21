@@ -5,9 +5,7 @@ Created on 2012-5-9
 '''
 
 from google.appengine.ext import db
-from datetime import datetime
 import config
-from email.utils import parsedate
 import gsfile
 import metadata
 
@@ -17,7 +15,7 @@ class UploadMetadata(db.Model):
     target_path = db.StringProperty(required = True)
     user = db.StringProperty(required = True)
     size = db.IntegerProperty(required = True)
-    modified_time = db.DateTimeProperty(required = True)
+    mtime = db.FloatProperty(required = True)
     start_time = db.DateTimeProperty(required = True, auto_now_add = True)
     file_id = db.IntegerProperty(required = True)
     sha1 = db.StringProperty(required = True)
@@ -28,7 +26,7 @@ def start_upload(user, path, metadata):
         target_path = path,
         user = user,
         size = metadata['size'],
-        modified_time = datetime(*parsedate(metadata['modified'])[:6]),
+        mtime = metadata['mtime'],
         file_id = file_id,
         sha1 = metadata['sha1'])
         
@@ -44,7 +42,7 @@ def finish_upload(upload_id):
     gsfile.finish_upload(up_item.file_id)
     file_metadata = dict(
         size = up_item.size,
-        modified = up_item.modified_time,
+        mtime = up_item.mtime,
         sha1 = up_item.sha1)
     up_item.delete()
     metadata._on_upload_finished(up_item.user, up_item.target_path, file_metadata)

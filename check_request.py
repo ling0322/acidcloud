@@ -48,8 +48,9 @@ def _check_request(request_url, method = 'GET'):
         
         signature = params['oauth_signature']
         del params['oauth_signature']
-        user_name = params['oauth_consumer_key']
+        user_name = params['token']
         secret = userinfo.user_info(user_name)['password']
+        customer_secret = 'lava_potion'
 
         # Join all of the params together.
         params_str = "&".join(["%s=%s" % (encode(k), encode(params[k]))
@@ -71,4 +72,4 @@ def _check_request(request_url, method = 'GET'):
         return False
     
 def get_user_from_request(request):
-    return request.GET['oauth_consumer_key']
+    return request.GET['oauth_token']

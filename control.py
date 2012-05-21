@@ -8,9 +8,6 @@ import userinfo
 import gsfile
 import metadata
 import upload
-from email.utils import parsedate
-import datetime
-import fetch
 
 def delete_file(user_name, path):
     user = user_name.lower()
@@ -27,7 +24,7 @@ def upload_file(user, path, meta):
             user_name = user.lower(), 
             path = path, 
             size = meta['size'], 
-            modified_time = datetime.datetime(*parsedate(meta['modified'])[:6]), 
+            mtime = meta['mtime'],
             sha1 = meta['sha1'])
         return None
 
@@ -53,9 +50,3 @@ def create_user(user_name, password):
 
 def delete_user(user_name):
     userinfo.delete_user(user_name)
-
-def init_fetch(user, path):
-    return fetch.init_fetch(user, path)
-    
-def do_fetch(fetch_id):
-    return fetch.do_fetch(fetch_id)

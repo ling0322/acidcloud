@@ -13,7 +13,11 @@ from google.appengine.ext.webapp import blobstore_handlers
 from check_request import checked_request, get_user_from_request
 from google.appengine.ext import blobstore
 
-class MainPage(webapp2.RequestHandler):
+class ac_request_handler(webapp2.RequestHandler):
+    def getusr(self):
+        return get_user_from_request(self.request)
+
+class MainPage(ac_request_handler):
     def get(self):
         pass
     
@@ -22,72 +26,59 @@ class MainPage(webapp2.RequestHandler):
             self.response.out.write('Hello, webapp World!')
             self.response.out.flush()
 
-class StartUpload(webapp2.RequestHandler):  
+class StartUpload(ac_request_handler):  
     
-    @checked_request
     def post(self, user, path):
         metadata = json.loads(self.request.body)
         upload_id = control.upload_file(user, path, metadata)
         self.response.body = 'OK' if upload_id == None else str(upload_id)
         
-class Upload(webapp2.RequestHandler):  
+class Upload(ac_request_handler):  
     
-    @checked_request
     def post(self, upload_id, block_index):
         upload.append_block(int(upload_id), int(block_index), 
                             self.request.body)
 
-class FinishUpload(webapp2.RequestHandler):  
+class FinishUpload(ac_request_handler):  
     
-    @checked_request
     def get(self, upload_id):
         upload.finish_upload(int(upload_id))
 
-class CreateUser(webapp2.RequestHandler):
+class CreateUser(ac_request_handler):
     def get(self):
         name = self.request.GET['name']
         password = self.request.GET['password']
         control.create_user(name, password)
 
-class List(webapp2.RequestHandler):
+class List(ac_request_handler):
     
-    @checked_request
-    def get(self, user):
-        self.response.body = json.dumps(control.get_list(user))
+    def get(self):
+        self.response.body = json.dumps(control.get_list(self.getusr()))
 
-class Delete(webapp2.RequestHandler):
+class Delete(ac_request_handler):
     
-    @checked_request
     def get(self, path):
-        control.delete_file(get_user_from_request(self.request), path)    
+        control.delete_file(self.getusr(), path)    
 
-class Fetch(blobstore_handlers.BlobstoreDownloadHandler):
+class FilesHandler(blobstore_handlers.BlobstoreDownloadHandler, ac_request_handler):
     
-    def get(self, fetch_id):
-        user, path = control.do_fetch(fetch_id)
-        gspath = control.get_file_gspath(user, path)
-        size = control.file_metadata(user, path)['size']
+    def get(self, path):
+        gspath = control.get_file_gspath(self.getusr(), path)
+        size = control.file_metadata(self.getusr(), path)['size']
         self.response.headers.add('Content-Length', str(size))
-        self.response.headers.add('x-acidcloud-metadata', json.dump(control.file_metadata(user, path)))
+        self.response.headers.add('x-acidcloud-metadata', json.dumps(control.file_metadata(self.getusr(), path)))
         self.send_blob(blobstore.create_gs_key(gspath))
-
-class FilesHandler(blobstore_handlers.BlobstoreDownloadHandler):
     
-    @checked_request
-    def get(self, path):
-        user = get_user_from_request(self.request)
-        fetch_id = control.init_fetch(user, path)
-        return self.redirect('/fetch/{0}'.format(fetch_id))
-    
+    def delete(self, path):
+        control.delete_file(self.getusr(), path)
+        
 
 app = webapp2.WSGIApplication([('/', MainPage),
                                ('/start-upload/([^/]+)(/.+)', StartUpload),
                                ('/upload/([0-9]+)/([0-9]+)', Upload),
                                ('/finish-upload/([0-9]+)', FinishUpload),
-                               ('/list/(.+)', List),
+                               ('/list', List),
                                ('/files(/.+)', FilesHandler),
-                               ('/fetch/(.+)', Fetch),
                                ('/create-user', CreateUser),
-                               ('/delete(/.+)', Delete),
                                ],
                               debug=True)
