@@ -7,15 +7,23 @@ Created on 2012-5-9
 
 import config
 import os
-import lava_potion
 import json
 import logging
+import hashlib
+from urllib import quote
 
-from email.utils import formatdate
 from ac_request import ac_request
 logging.getLogger().setLevel(logging.DEBUG)
 
-
+def _sha1_file(path):
+    sha1 = hashlib.sha1()
+    with open(path, 'rb') as fp:
+        data = fp.read(1000000)
+        while data:
+            sha1.update(data)
+            data = fp.read(1000000)
+            
+    return sha1.hexdigest()
 
 def block_iterator(path):
     with open(path, 'rb') as fp:
@@ -27,18 +35,16 @@ def block_iterator(path):
                 break
             yield content, i
             i += 1
-               
-
 
 def prepare_file_metadata(path):
     file_stat = os.stat(path)
-    sha1 = lava_potion.sha1_file(path)
+    sha1 = _sha1_file(path)
     size = file_stat.st_size 
-    modified = formatdate(file_stat.st_mtime)
+    modified = file_stat.st_mtime
     return dict(
         sha1 = sha1,
         size = size,
-        modified = modified)
+        mtime = modified)
             
 def upload_block(upload_id, content, index):
     url = "{0}/upload/{1}/{2}".format(config.AC_URL, upload_id, index)
@@ -47,8 +53,8 @@ def upload_block(upload_id, content, index):
 def start_upload(user, upload_path, metadata):  
     json_metadata = json.dumps(metadata)
     
-    url = "{0}/start-upload/{1}{2}".format(config.AC_URL, user, upload_path)
-    result = ac_request(url, json_metadata)
+    url = "{0}/start-upload/{1}{2}".format(config.AC_URL, user, quote(upload_path))
+    resp, result = ac_request(url, json_metadata)
     if result == 'OK':
         return None
     upload_id = int(result)

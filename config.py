@@ -18,7 +18,10 @@ USER_NAME = 'root'
 PASSOWRD = _hash_password('1')
 RETRY_TIMES = 1
 DEBUG = True
-AC_URL = "http://ac.loli.yt"
+AC_URL = "http://localhost:8080"
 ROOT_PATH = r'e:\ac_test'
 CONSUMER_KEY = 'lava_potion'
 CONSUMER_SECRET = 'lava_potion'
+
+SYNC_METHOD_LOG = True
+METADATA_LOG = True

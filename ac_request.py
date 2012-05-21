@@ -21,7 +21,8 @@ from urllib import urlencode
 from urllib import quote as urlquote
 import config
 import logging
-import urllib2
+import httplib2
+import re
 
 def prepare_request(url, token="", secret="", consumer_secret="", consumer_key="", 
                     additional_params=None, method='GET', t=None, nonce=None):
@@ -72,10 +73,14 @@ def prepare_request(url, token="", secret="", consumer_secret="", consumer_key="
     return urlencode(params)
 
 
-def ac_request(url, data = None, params = None):
+
+def ac_request(url, data = None, params = None, method = None, headers = None):
+    if method == None:
+        method = 'GET' if data == None else 'POST'
+        
     flag = False
     failed_count = 0
-    result = None
+    http = httplib2.Http()
     signed_url = url + '?' + prepare_request(
         url = url, 
         token = config.USER_NAME, 
@@ -83,18 +88,18 @@ def ac_request(url, data = None, params = None):
         consumer_key = config.CONSUMER_KEY,
         consumer_secret = config.CONSUMER_SECRET,
         additional_params = params, 
-        method = 'GET' if data == None else 'POST')
+        method = method)
     logging.warning("request to '{0}'".format(signed_url))
     while flag == False:
         try:
-            fp = urllib2.urlopen(signed_url, data)
-            result = fp.read()
-            fp.close()
+            resp, content = http.request(signed_url, method, data, headers)
+            if re.match('(2|3)..', resp['status']) == None:
+                raise Exception('failed to fetch {0}'.format(signed_url))
             flag = True
-        except urllib2.URLError as e:
+        except Exception as e:
             failed_count += 1
             logging.warning("request to '{0}' failed {1} times".format(url, failed_count))
             if failed_count == config.RETRY_TIMES:
                 raise e
             
-    return result
+    return resp, content
