@@ -4,13 +4,15 @@ Created on 2012-5-9
 @author: ling0322
 '''
 
-
+from __future__ import unicode_literals
 import config
 import os
 import json
 import logging
 import hashlib
 from urllib import quote
+import lava_potion
+from lava_potion import encode_if_necessary
 
 from ac_request import ac_request
 logging.getLogger().setLevel(logging.DEBUG)
@@ -31,7 +33,7 @@ def block_iterator(path):
         i = 0
         while True:
             content = fp.read(config.UPLOAD_BLOCK_SIZE)
-            if content == '':
+            if content == b'':
                 break
             yield content, i
             i += 1
@@ -53,29 +55,42 @@ def upload_block(upload_id, content, index):
 def start_upload(user, upload_path, metadata):  
     json_metadata = json.dumps(metadata)
     
-    url = "{0}/start-upload/{1}{2}".format(config.AC_URL, user, quote(upload_path))
+    url = "{0}/upload/start{1}".format(config.AC_URL, quote(upload_path))
     resp, result = ac_request(url, json_metadata)
-    if result == 'OK':
+    if resp['status'] == '304':
         return None
     upload_id = int(result)
     return upload_id
 
 def finish_upload(upload_id):
-    url = "{0}/finish-upload/{1}".format(config.AC_URL, upload_id)
-    ac_request(url)
+    url = "{0}/upload/finish/{1}".format(config.AC_URL, upload_id)
+    ac_request(url, method = 'POST', data = 'OK')
     
 def upload_file(path, upload_path):
     metadata = prepare_file_metadata(path)
-    upload_id = start_upload(config.USER_NAME, upload_path, metadata)
+    if metadata['size'] > 2 * config.UPLOAD_BLOCK_SIZE:
+        upload_id = start_upload(config.USER_NAME, upload_path, metadata)
     
-    if upload_id == None:
-        # this file already exists in server, so there is no need to upload content
+        if upload_id == None:
+            # this file already exists in server, so there is no need to upload content
         
-        return 
-    for block, index in block_iterator(path):
-        logging.info('upload {0} - block {1}'.format(path, index))
-        upload_block(upload_id, block, index)
-    finish_upload(upload_id)
+            return 
+        for block, index in block_iterator(path):
+            logging.info('upload {0} - block {1}'.format(path, index))
+            upload_block(upload_id, block, index)
+        finish_upload(upload_id)
+    else:
+        
+        # direct upload
+        lava_potion.log(config.UPLOAD_FILE_LOG, 'direct upload file: {0}'.format(upload_path), __name__)
+        lava_potion.log(config.UPLOAD_FILE_LOG, str(type(upload_path)), __name__)
+        data = b''.join(map(lambda x: x[0], block_iterator(path)))
+        upload_path = encode_if_necessary(upload_path)
+        resp, result = ac_request(
+            url = "{0}/files{1}".format(config.AC_URL, quote(upload_path)),
+            data = data,
+            method = 'PUT',
+            headers = {'x-acidcloud-metadata': json.dumps(metadata)})
 
 
     

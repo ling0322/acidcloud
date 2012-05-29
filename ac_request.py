@@ -13,6 +13,7 @@ note however this software is unsupported. Please don't email me about it. :)
 
 '''
 
+from __future__ import unicode_literals
 from hashlib import sha1
 from hmac import new as hmac
 from random import getrandbits
@@ -20,9 +21,9 @@ from time import time
 from urllib import urlencode
 from urllib import quote as urlquote
 import config
-import logging
 import httplib2
 import re
+from lava_potion import *
 
 def prepare_request(url, token="", secret="", consumer_secret="", consumer_key="", 
                     additional_params=None, method='GET', t=None, nonce=None):
@@ -89,16 +90,22 @@ def ac_request(url, data = None, params = None, method = None, headers = None):
         consumer_secret = config.CONSUMER_SECRET,
         additional_params = params, 
         method = method)
-    logging.warning("request to '{0}'".format(signed_url))
+    log(config.ACREQUEST_LOG, "request to '{0}'".format(signed_url), __name__)
     while flag == False:
         try:
+            data = encode_if_necessary(data)
+            signed_url = encode_if_necessary(signed_url)
+            method = encode_if_necessary(method)
+            if headers != None:
+                headers = {encode_if_necessary(key): encode_if_necessary(value) 
+                           for key, value in headers.items()}
             resp, content = http.request(signed_url, method, data, headers)
             if re.match('(2|3)..', resp['status']) == None:
                 raise Exception('failed to fetch {0}'.format(signed_url))
             flag = True
-        except Exception as e:
+        except ItemNotFoundException as e:
             failed_count += 1
-            logging.warning("request to '{0}' failed {1} times".format(url, failed_count))
+            log(config.ACREQUEST_LOG, "request to '{0}' failed {1} times".format(url, failed_count), __name__)
             if failed_count == config.RETRY_TIMES:
                 raise e
             

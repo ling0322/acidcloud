@@ -3,13 +3,14 @@ Created on 2012-5-15
 
 @author: ling0322
 '''
-
+from __future__ import unicode_literals
 import pathtools.path
 import os.path
 import pickle
 import config
 import copy
-from lava_potion import log
+
+from lava_potion import log, relpath, encode_if_necessary
 import json
 
 def _cmp_time(t1, t2):
@@ -41,7 +42,7 @@ def diff(list_1, list_2):
         else:
             diff['remained'].append(key_1)
                 
-    diff['missing'] = list_2
+    diff['missing'] = [key for key, value in list_2.items()]
         
     return diff
 
@@ -49,7 +50,7 @@ def local_list(root_path):
     mlist = {}
     for abs_path in pathtools.path.list_files(root_path):
         try:
-            rel_path = '/' + os.path.relpath(abs_path, root_path).replace('\\', '/')
+            rel_path = relpath(abs_path)
             file_stat = os.stat(abs_path)
             mlist[rel_path] = dict(
                 size = file_stat.st_size,
@@ -93,7 +94,10 @@ class Metadata:
         try:
             self._local_list = pickle.load(open(self.pickle_path, 'rb'))
         except:
-            os.remove(self.pickle_path)
+            try:
+                os.remove(self.pickle_path)
+            except:
+                pass
             pickle.dump({}, open(self.pickle_path, 'wb'))
             self._local_list = {}
     
